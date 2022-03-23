@@ -1,6 +1,8 @@
 # Veszee
 Visualization and Analyzing tools for a bayesian forward modelling technique called `eszee`. When installed all tools can all at once be tested by running 
+
     sh test.sh
+    
 This will run all three init files in the folder, when a data folder is manually added. 
 
 ## Installing Veszee
