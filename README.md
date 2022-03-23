@@ -3,7 +3,7 @@ Visualization and Analyzing tools for a bayesian forward modelling technique cal
 
 ## Installing Veszee
 Here are some basic instructions for setting `Veszee` to get analytical plots and tools from the uv-space modelling tool `eszee`. <br>
-The installation follows a `conda`-based procedure, as it will get everything installed and cross-linked correctly.
+The installation follows a `conda`-based procedure, as it will get everything installed and cross-linked correctly for linux machines. If installing in a mac, it might need some tuning (removing packages) that can't be found.
 
 #### conda-powered installation
 The simplest way for getting `eszee` ready is to install it using `conda` <br>
