@@ -47,8 +47,14 @@ def mock_it(t, RA, Dec, Mass, z):
 
 
 
-SZmap_noisy, SZmap_noisless, std, header = function(2.1, RA, Dec, M500, z,)
-SNR_want                                 =  abs(np.nanmin(SZmap_noisless)/93.71266889746519e-3)
+RA   = ...
+Dec  = ...
+M500 = ...
+z    = ...
+
+
+SZmap_noisy, SZmap_noisless, std, header = mock_it(2.1, RA, Dec, M500, z)
+SNR_want                                 = abs(np.nanmin(SZmap_noisless)/93.71266889746519e-3)
 t_integration                            = (8/SNR_want)**2 * 2.1    
 
 print("Found Integration time: t = {:.1f}h, SNR = {:.2f}".format(t_integration, 8))
