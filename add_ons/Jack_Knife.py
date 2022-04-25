@@ -35,6 +35,7 @@ class Test_SZonly:
         
         self.vis        =  vis
         self.vis_jacked = 'Model_'+ (vis.split('/')[-1]).split('.ms')[-1] + typ + '_Jacked.ms'
+        
         self.model_name = model_name
         self.typ        = typ
         self.reader     = MsReader(self.vis, self.typ)
@@ -47,19 +48,35 @@ class Test_SZonly:
             self.imcell = '0.15arcsec'
         
     def _loader(self):
-        _, UVreal, UVimag, _ = self.reader.uvdata_loader()
+        uvdist, UVreal, UVimag, _ = self.reader.uvdata_loader()
 
         self.UVreal = UVreal
         self.UVimag = UVimag
-
-    def _saver(self):
-        self.reader.ms_copydir = './output/add_ons/'
+        self.uvdist = uvdist
         
-        self.vis_jacked =  self.reader.ms_copydir + self.vis_jacked
-        self.reader.model_to_ms(self.UVreal_jacked + self.UVimag*1j, 
+    def _saver(self, wgt = 1):
+        self.reader.ms_copydir = './output/add_ons/'
+        self.reader.ms_modelfile = self.reader.ms_copydir + self.reader.ms_file.split('/')[-1]
+        
+        self.vis_jacked =  self.reader.ms_copydir + self.vis_jacked     
+        self.reader.model_to_ms(self.UVreal + self.UVimag*1j, 
                                 1, 
                                 'replace', 
-                                (self.vis.split('/')[-1]).split('.ms')[-1] + self.typ + '_Jacked')
+                                (self.vis.split('/')[-1]).split('.ms')[-1] + self.typ + '_Jacked',
+                                self.wgt)
+    
+    def _bin_it(self):
+                
+        bins = np.logspace(np.log10(np.nanmin(self.uvdist)), np.log10(np.nanmax(self.uvdist)), int(0.1*len(self.uvdist)))
+        self.UVreal_binned = np.zeros(len(bins)-1)
+        self.UVimag_binned = np.zeros(len(bins)-1)
+
+        for i in range(len(bins)-1):
+            maskb =(self.uvdist >= bins[i]) & (self.uvdist < bins[i+1])
+            self.UVreal_binned[i] = np.nanmean(self.UVreal_jacked[maskb])
+            self.UVimag_binned[i] = np.nanmean(self.UVimag[maskb])
+            
+        self.wgt = np.nanstd(self.UVreal_binned)
     
     def Jack_it(self):
         indexing = np.ones_like(self.UVreal)
@@ -71,12 +88,12 @@ class Test_SZonly:
         UVreal_jacked = np.copy(self.UVreal)
         UVreal_jacked[indexing.astype(bool)] *= -1
 
-        self.UVreal_jacked = UVreal_jacked            
+        self.UVreal_jacked = UVreal_jacked        
+        self._bin_it()
         
     #######################
     ###     Imaging     ###
     #######################
-        
     
     def _image(self):
         tclean( vis         =                      self.vis_jacked,
