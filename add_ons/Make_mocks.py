@@ -47,15 +47,12 @@ def r_theta(im, xc, yc):
     phi = np.arctan2(yp, xp)
     return(rr, phi)
 
-
-
 class Mockobs:
-    def __init__(self, direc, doaca, doalma, ttaca, ttalma, noisy, almaconf = '1'):
+    def __init__(self, direc, doaca, doalma, ttaca, ttalma, almaconf = '1'):
         self.doaca    = doaca
         self.doalma   = doalma
         self.ttaca    = ttaca
         self.ttalma   = ttalma
-        self.noisy    = noisy
         self.almaconf = almaconf
         
         if self.doaca:
@@ -66,21 +63,21 @@ class Mockobs:
             self.imcell = '0.15arcsec'
 
         self.direc = direc
-                    
+
     def _make_grid(self, popt):
 
         typ, RA, Dec = self.direc.split(' ')
-        c = SkyCoord(RA, Dec, frame='icrs') #don't make it direc but from popt
+        c = SkyCoord(RA, Dec, frame='icrs')
 
         x, y  = np.meshgrid(np.arange(-self.imsize/2, self.imsize/2, 1.), np.arange(-self.imsize/2, self.imsize/2, 1.))
         x += 0.5
         y -= 0.5
                 
-        RA  = x * float(self.imcell.split('arcsec')[0])/60/60 + c.ra.value
+        RA  = -1*x * float(self.imcell.split('arcsec')[0])/60/60/np.cos(np.deg2rad(c.dec.value)) + c.ra.value        
         Dec = y * float(self.imcell.split('arcsec')[0])/60/60 + c.dec.value
 
         r  = (Dec - popt['Dec'])**2 
-        r += ((RA - popt['RA'])*np.cos(np.deg2rad(c.dec.value)))**2
+        r += ((RA - popt['RA'])*np.cos(np.deg2rad(popt['Dec'])))**2
         r  = r**0.5 
         
         return r
@@ -91,15 +88,14 @@ class Mockobs:
 
         for t  in popt.keys(): 
             if COMPONENTS[t.split('_')[0]]['make_image'] == True:     
-                
+                                
                 grid  = self._make_grid(popt[t])
 
                 transform = TransformInput(popt[t], t)
                 input_par = transform.generate() 
-
                 info = getinfo()
                 
-                coord = grid * info.cosmo.angular_diameter_distance(popt[t]['z'])
+                coord = np.deg2rad(grid) * info.cosmo.angular_diameter_distance(popt[t]['z'])
                 coord = coord.value/input_par['major']
 
                 if t.split('_')[0] == 'gnfwPressure':
@@ -119,12 +115,14 @@ class Mockobs:
 
         if self.doalma:
             fits.writeto("./output/add_ons/synthatic_SZmodel_com12m.fits", SZmap, overwrite = True)
+            fits.writeto("./output/add_ons/synthatic_Ymap_com12m.fits", Ymap, overwrite = True)
         elif self.doaca:
             fits.writeto("./output/add_ons/synthatic_SZmodel_com07m.fits", SZmap, overwrite = True)
-            
+            fits.writeto("./output/add_ons/synthatic_Ymap_com07m.fits", Ymap, overwrite = True)
+
     def _make_mocks(self):
         file = open('ptgfile.txt','w')
-        file.write(self.direc)
+        file.write(self.direc + ' {:.1f}'.format(23*60))
         file.close()
 
         names = []
@@ -134,6 +132,7 @@ class Mockobs:
                   setpointings = False,
                        ptgfile = 'ptgfile.txt',
                      overwrite = True,
+                   integration = '10s',
                      totaltime = self.ttaca[0],
                       inbright = '',
                         incell = '1.50arcsec',
@@ -141,6 +140,7 @@ class Mockobs:
                       incenter = '95GHz',
                        inwidth =  '8GHz',
                    antennalist = './add_ons/confc8/aca.cycle7.cfg',
+                          seed = 42,
                       graphics = 'none')
 
         if self.doalma:
@@ -149,6 +149,7 @@ class Mockobs:
                   setpointings = False,
                        ptgfile = 'ptgfile.txt',
                      overwrite = True,
+                   integration = '10s',
                      totaltime = self.ttalma[0],
                       inbright = '',
                         incell = '0.15arcsec',
@@ -156,6 +157,7 @@ class Mockobs:
                       incenter = '95GHz',
                        inwidth =  '8GHz',
                    antennalist = './add_ons/confc8/alma.cycle7.{0}.cfg'.format(self.almaconf),
+                          seed = 42,
                       graphics = 'none')
         
         if os.path.exists('./output/add_ons/'+'test_{0}_{1}'.format(self.ttaca[1] if self.doaca else 'noaca',self.ttalma[1] if self.doalma else 'noalma')):
@@ -200,7 +202,7 @@ class Mockobs:
         Synthatic_SZimage = Synthatic_SZimage[0,0] *1e3
 
         FOV     = [int(self.imsize/4 *1.3),int(self.imsize - self.imsize/4*1.3)]
-        mask_rms = circle_mask(Synthatic_SZimage, self.imsize//2, self.imsize//2, 0.2*self.imsize)
+        mask_rms = circle_mask(Synthatic_SZimage, self.imsize//2, self.imsize//2, 0.1*self.imsize)
 
         fig, ax = plt.subplots(1,1)
         fig.suptitle("Synthatic SZ Observations")
@@ -208,9 +210,10 @@ class Mockobs:
         im0 = ax.imshow(Synthatic_SZimage[FOV[0]:FOV[1],FOV[0]:FOV[1]])
         cbar = plt.colorbar(im0, ax = ax)
         cbar.set_label(r'$S_{\nu}$ [mJy/Beam]')
+        
         ax.text(0.05*(FOV[1]-FOV[0]),0.90*(FOV[1]-FOV[0]), 
                 '{} = {:.4f} [mJy/Beam]'.format(r"$\sigma_{S_\nu}$", np.nanstd(Synthatic_SZimage[~mask_rms])), 
-                color='white')
+                color='k')
             
         if self.doalma:
             x = np.arange(0.05*(FOV[1]-FOV[0]), 0.05*(FOV[1]-FOV[0])+60, 1)
@@ -220,9 +223,9 @@ class Mockobs:
         y = np.copy(x)
         y[:] = 0.05*(FOV[1]-FOV[0])
 
-        ax.plot(x, y, '-', linewidth=3, color='white')
+        ax.plot(x, y, '-', linewidth=3, color='k')
         ax.text(0.07*(FOV[1]-FOV[0]), 0.10*(FOV[1]-FOV[0]), r'9"', 
-                verticalalignment='top', color='white', size=11)
+                verticalalignment='top', color='k', size=11)
 
         ax.set_xticks([])
         ax.set_yticks([])
@@ -233,26 +236,33 @@ class Mockobs:
         plt.savefig('./plots/add_ons/Synthatic_SZobs_{0}_{1}_noisy{2}.pdf'.format(self.ttaca[1] if self.doaca else 'noaca', self.ttalma[1] if self.doalma else 'noalma', str(self.noisy)))
         plt.close()
         
-        return Synthatic_SZimage
+        return Synthatic_SZimage, header_SZ
         
     def run(self, popt):
         
         print('.. Initialize Model')
         self._make_model(popt)
         
-        print()
         print('.. Make Synthatic Observations')
         self._make_mocks()
 
-        print()
-        print('.. Image mocks')
+        print('.. Noisy')
+        print('.... Image mocks')
+        self.noisy    = True
         names = self._image_mocks()
         
-        print()
-        print('.. Visualize')
-        SZmap = self._show_images(names)
+        print('.... Visualize')
+        SZmap_noisy, header_SZ = self._show_images(names)
+
+        print('.. Noiseless')
+        print('.... Image mocks')
+        self.noisy    = False
+        names = self._image_mocks()
         
+        print('.... Visualize')
+        SZmap_noisless, _ = self._show_images(names)
+               
         os.system('rm -vf *.last')
         os.system('rm -vf *.log')
         
-        return SZmap
+        return SZmap_noisy, SZmap_noisless, header_SZ
