@@ -106,7 +106,7 @@ class Modeler:
                 transform = TransformInput(self.popt[model_type], model_type)
                 input_par = transform.generate() 
                 
-                coord = grid * self.info.cosmo.angular_diameter_distance(self.popt[model_type]['z'])
+                coord = np.deg2rad(grid) * info.cosmo.angular_diameter_distance(popt[t]['z'])
                 coord = coord.value/input_par['major']
                                 
                 if model_type.split('_')[0] == 'gnfwPressure':
