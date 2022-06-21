@@ -21,6 +21,7 @@ To active this, you can use `conda activate Veszee_env` (or any name you used fo
 #### Installing Casatools and Casatasks
 Only the installment of casatools and casataks could not be installed automatically. Please install casatools and casataks as follows. Enter the newly created virtual environment with `conda activate Veszee_env` and run:
 
+    apt-get install libgfortran3
     pip install --index-url https://casa-pip.nrao.edu/repository/pypi-casa-release/simple casatools==6.0.0.27
     pip install --index-url https://casa-pip.nrao.edu/repository/pypi-casa-release/simple casatasks==6.0.0.27
     
